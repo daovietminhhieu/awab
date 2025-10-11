@@ -5,7 +5,7 @@ const AloWorkUser = require("../model/AloWorkUser");
 // GET all users
 const getAllAloWorkUsers = async (req, res) => {
   try {
-    const users = await AloWorkUser.find().populate("my_programm");
+    const users = await AloWorkUser.find();
     res.status(200).json({ success: true, count: users.length, data: users });
   } catch (err) {
     res
