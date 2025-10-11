@@ -1,7 +1,6 @@
 // ===================================================== Users parts =====================================================
 const AloWorkUser = require("../model/AloWorkUser");
 
-
 // GET all users
 const getAllAloWorkUsers = async (req, res) => {
   try {
@@ -17,7 +16,7 @@ const getAllAloWorkUsers = async (req, res) => {
 // GET user by ID
 const getAloWorkUserById = async (req, res) => {
   try {
-    const user = await AloWorkUser.findById(req.params.id).populate("my_programm");
+    const user = await AloWorkUser.findById(req.params.id);
     if (!user)
       return res
         .status(404)
@@ -34,8 +33,7 @@ const getAloWorkUserById = async (req, res) => {
 const addNewAloWorkUser = async (req, res) => {
   try {
     const user = await AloWorkUser.create(req.body);
-    const populatedUser = await user.populate("my_programm");
-    res.status(201).json({ success: true, data: populatedUser });
+    res.status(201).json({ success: true, data: user });
   } catch (err) {
     res
       .status(400)
@@ -49,11 +47,13 @@ const updateAloWorkUserById = async (req, res) => {
     const user = await AloWorkUser.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true,
-    }).populate("my_programm");
+    });
+
     if (!user)
       return res
         .status(404)
         .json({ success: false, message: "User not found" });
+
     res.status(200).json({ success: true, data: user });
   } catch (err) {
     res
@@ -204,10 +204,10 @@ const deleteProgrammById = async (req, res) => {
   }
 };
 
+// Randomize programms type_category
 const updateAllProgrammsTypeCategoryRandom = async (req, res) => {
   try {
     const programms = await Programm.find();
-
     let updatedCount = 0;
 
     for (const programm of programms) {
@@ -246,14 +246,15 @@ const restartProgramms = async (req, res) => {
   }
 };
 
-
 // ----------------------------------------------------- Referral Programm Routes ---------------------------------------------------
+const Referrals = require("../model/Referrals");
+
 const getProgrammByReferralId = async (req, res) => {
   try {
     const { id } = req.params; // referralId
     const referral = await Referrals.findById(id)
-      .populate("programm") // Lấy tất cả các trường từ programm
-      .populate("recruiter", "email name"); // Lấy các trường từ recruiter
+      .populate("programm")
+      .populate("recruiter", "email name");
 
     if (!referral) {
       return res.status(404).json({ success: false, message: "Referral not found" });
@@ -271,9 +272,7 @@ const getProgrammByReferralId = async (req, res) => {
     return res.json({
       success: true,
       message: "Referral for waiting candidate, programm details loaded.",
-      data: {
-        programm,
-      }
+      data: { programm },
     });
 
   } catch(err) {
@@ -282,11 +281,7 @@ const getProgrammByReferralId = async (req, res) => {
   }
 };
 
-
-
-// ----------------------------------------------------- Candidates Route, if they are not in system --------------------------------
-const Referrals = require("../model/Referrals");
-
+// ----------------------------------------------------- Candidates Route ------------------------------------------------------------
 const fillInformation = async (req, res) => {
   try {
     const { id } = req.params; // referralId
@@ -296,22 +291,21 @@ const fillInformation = async (req, res) => {
       return res.status(404).json({ success: false, message: "Referral not found" });
     }
 
-    // Nếu đã có user login (req.user có id và role candidate)
     if (req.user && req.user.role === "candidate") {
       referral.candidate = req.user.id;
     } else {
-      // Nếu chưa login → lưu thông tin ứng viên tạm vào candidateInfo
       referral.candidateInfo = {
         fullName: req.body.fullName,
         email: req.body.email,
         phone: req.body.phone,
-        resumeFile: req.body.resumeFile, // link tới file upload
+        resumeFile: req.body.resumeFile,
         coverLetter: req.body.coverLetter,
-        otherDocs: Array.isArray(req.body.otherDocs) ? req.body.otherDocs.join(",") : req.body.otherDocs,
+        otherDocs: Array.isArray(req.body.otherDocs)
+          ? req.body.otherDocs.join(",")
+          : req.body.otherDocs,
       };
     }
 
-    //referral.status = "pending"; // sau khi fill → chuyển sang pending
     referral.updatedAt = new Date();
     await referral.save();
 
@@ -321,7 +315,7 @@ const fillInformation = async (req, res) => {
       data: referral,
     });
   } catch (err) {
-    console.error("❌ fillInformation error:", err); // <-- Thêm dòng này để log lỗi thật
+    console.error("❌ fillInformation error:", err);
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -329,8 +323,6 @@ const fillInformation = async (req, res) => {
     });
   }
 };
-
-
 
 // ----------------------------------------------------- Login && SignUp ------------------------------------------------------------
 const jwt = require("jsonwebtoken");
@@ -344,20 +336,16 @@ const doRegister = async (req, res) => {
       return res.status(400).json({ success: false, message: "Email and password required" });
     }
 
-    // Check trùng email
     const existing = await AloWorkUser.findOne({ email });
     if (existing) {
       return res.status(400).json({ success: false, message: "Email already exists" });
     }
 
-    // Hash password
-
-    // Tạo user mới
     const user = await AloWorkUser.create({
       name,
       phone,
       email,
-      password: password,
+      password,
       role,
     });
 
@@ -385,13 +373,11 @@ const doLogin = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid email or password" });
     }
 
-    // So sánh password
     const isMatch = password === user.password;
     if (!isMatch) {
       return res.status(400).json({ success: false, message: "Invalid email or password" });
     }
 
-    // Tạo JWT token
     const token = jwt.sign(
       { id: user._id, role: user.role },
       process.env.JWT_SECRET,
@@ -409,8 +395,7 @@ const doLogin = async (req, res) => {
   }
 };
 
-
-
+// EXPORT
 module.exports = {
   // Users
   getAllAloWorkUsers,
@@ -429,13 +414,11 @@ module.exports = {
   updateAllProgrammsTypeCategoryRandom,
   restartProgramms,
 
-
-  //
+  // Referrals & Candidate
   fillInformation,
   getProgrammByReferralId,
 
-  // Login && SignUp
+  // Auth
   doRegister,
   doLogin
-
 };
