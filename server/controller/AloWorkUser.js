@@ -18,10 +18,10 @@ const findReferralById = async (id) => {
 // ------------------------------- USER ROUTES -------------------------------
 const getProfile = async (req, res) => {
   try {
-    const user = await AloWorkUser.findById(req.user.id)
-      .select("-password")
-      .populate("my_programm")
-      .lean();
+    console.log("🔍 getProfile req.user:", req.user);
+
+    const user = await AloWorkUser.findById(req.user.id).select("-password").lean();
+
 
     if (!user) return respond(res, 404, false, "User not found");
 
@@ -47,24 +47,30 @@ const getProfile = async (req, res) => {
 
 const updateProfile = async (req, res) => {
   try {
-    const updates = { ...req.body };
-    delete updates.role;
-    delete updates.email;
-    delete updates.password;
 
-    const updatedUser = await AloWorkUser.findByIdAndUpdate(
-      req.user.id,
-      updates,
-      { new: true, runValidators: true }
-    )
-      .select("-password")
-      .populate("my_programm");
+    const user = await AloWorkUser.findById(req.user.id);
+    if (!user) return respond(res, 404, false, "User not found");
 
-    if (!updatedUser) return respond(res, 404, false, "User not found");
+    // chỉ cho phép update name, email, password
+    if (req.body.name) user.name = req.body.name;
+    if (req.body.email) user.email = req.body.email;
+    if (req.body.password) user.password = req.body.password;
 
-    return respond(res, 200, true, "Profile updated successfully", updatedUser);
+    await user.save();
+
+    const newToken = jwt.sign(
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "2d" }
+    );
+
+    return respond(res, 200, true, "Profile updated successfully", {
+      user,
+      token: newToken,
+    });
   } catch (err) {
-    return respond(res, 400, false, "Update failed", err.message);
+    console.error("❌ Update profile error:", err);
+    return respond(res, 400, false, "Update failed", err.message || err);
   }
 };
 
