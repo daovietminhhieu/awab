@@ -202,7 +202,7 @@ const makeReferralsRequests = async (req, res) => {
     await referral.save();
 
     // 2️⃣ Cập nhật link referral ngay sau khi có _id
-    referral.link = `http://localhost:5173/programm-view/candidate-apply/${referral._id}`;
+    referral.link = `https://awa-gjr9.onrender.com/programm-view/candidate-apply/${referral._id}`;
     await referral.save();
 
     // 3️⃣ Lấy bản đầy đủ có populate (programm, recruiter, v.v.)
