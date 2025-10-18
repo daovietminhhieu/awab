@@ -35,6 +35,15 @@ const {
   saveProgramm,
   unsaveProgramm,
   getSavedProgramms,
+  
+  
+  getPosts,
+  getPostBySlug,
+  createPost,
+  updatePost,
+  deletePost,
+  getPostsByType,
+  deleteAllPosts,
 
 } = require("../controller/AloWorkUser");
 
@@ -83,6 +92,18 @@ router.post("/programm/new", auth, role(["admin"]), addProgramm);
 router.patch("/programm/edit/:id", auth, role(["admin"]), updateProgrammById);
 router.delete("/programm/delete/:id", auth, role(["admin"]), deleteProgrammById);
 router.post("/pause-unpause-programm", auth, role(["admin"]), pauseOrunpauseProgrammById);
+
+
+router.get("/posts", getPosts);
+router.get("/post", getPostsByType);
+router.get("/:slug", getPostBySlug);
+router.post("/", auth, role(["recruiter"]), createPost);
+router.put("/update/:id", updatePost);
+router.delete("/remove/:id", deletePost);
+router.delete("/posts/delete-all", auth, role(["admin"]), deleteAllPosts);
+
+
+
 
 // =============================================================== RECRUITER ===============================================================
 router.post("/referrals-request", auth, role(["recruiter"]), makeReferralsRequests);

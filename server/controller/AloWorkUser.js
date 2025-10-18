@@ -396,6 +396,142 @@ const pauseOrunpauseProgrammById = async (req, res) => {
 };
 
 
+// Post Controllers
+const Post = require('../model/Post');
+
+// 📌 Lấy tất cả bài viết
+const getPosts = async (req, res) => {
+  try {
+    const posts = await Post.find().sort({ createdAt: -1 });
+    res.json(posts);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+const deleteAllPosts = async (req, res) => {
+  try {
+    await Post.deleteMany({});
+    return res.json({
+      success: true,
+      message: "All posts have been deleted",
+    });
+  } catch (err) {
+    console.error("❌ deleteAllPosts error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+const getPostsByType = async (req, res) => {
+  try {
+    console.log("getPostsByType called");
+    const { type } = req.query;
+
+    if (!type) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required query parameter: type",
+      });
+    }
+
+    // Log type query
+    console.log("getPostsByType called with type:", type);
+
+    const posts = await Post.find({ type });
+    console.log("Queried posts:", posts);
+
+    console.log(`Found ${posts.length} posts for type ${type}`);
+
+    return res.json({
+      success: true,
+      message: "Posts fetched successfully",
+      data: posts,
+    });
+  } catch (err) {
+    console.error("❌ getPostsByType error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+}
+
+// 📌 Lấy bài viết theo slug
+const getPostBySlug = async (req, res) => {
+  try {
+    const post = await Post.findOne({ slug: req.params.slug });
+    if (!post) return res.status(404).json({ message: "Post not found" });
+    res.json(post);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// 📌 Tạo bài viết mới
+const createPost = async (req, res) => {
+  try {
+    const { type, title, thumbnail_url, content, location, event_date, status } = req.body;
+
+    if (!type || !title || !thumbnail_url) {
+      return res.status(400).json({ success: false, message: "Thiếu trường bắt buộc. Kiểu bài viết, tên tiêu đề hoặc link ảnh bị thiếu." });
+    }
+
+    
+
+    const post = new Post({
+      type,
+      title,
+      thumbnail_url,
+      content: content || "",
+      location: location || "",
+      event_date: event_date ? new Date(event_date) : null,
+      status: status || "draft",
+      publishedAt: status === "published" ? new Date() : null,
+      author: req.user?.id || "admin",
+    });
+
+    await post.save();
+
+    res.status(201).json({ success: true, data: post });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Lỗi server" });
+  }
+};
+
+
+const updatePost = async (req, res) => {
+  try {
+    const updated = await Post.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+    });
+    
+    res.json({
+      success: true,       // ✅ Thêm dòng này
+      data: updated,       // ✅ Gửi lại dữ liệu
+    });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+};
+
+
+// 📌 Xóa bài viết
+const deletePost = async (req, res) => {
+  try {
+    const deletedPost = await Post.findByIdAndDelete(req.params.id);
+    if (!deletedPost) {
+      return res.status(404).json({ success: false, message: "Post not found" });
+    }
+    res.json({ success: true, message: "Post deleted successfully" });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+};
+
 
 
 
@@ -615,6 +751,16 @@ module.exports = {
   updateProgrammById,
   deleteProgrammById,
   pauseOrunpauseProgrammById,
+  
+  
+  getPosts,
+  getPostBySlug,
+  createPost,
+  updatePost,
+  deletePost,
+  getPostsByType,
+  deleteAllPosts,
+
 
   // RECRUITER
   recruiterRequestStepUpdate,

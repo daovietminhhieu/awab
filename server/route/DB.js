@@ -52,4 +52,26 @@ router.post("/programm/c/:id/fill", fillInformation);
 router.post("/register", doRegister);
 router.post("/login", doLogin);
 
+
+// =================== Supabase =========================
+const supabaseCtrl = require("../controller/Supabase.js");
+const multer = require("multer");
+
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
+
+// Upload route
+router.post("/upload", upload.single("file"), supabaseCtrl.uploadFile);
+
+router.delete("/delete/:filename", supabaseCtrl.deleteFile);
+router.get("/list", supabaseCtrl.listFiles);
+
+
+
+
+
+
+
+
+
 module.exports = router;
