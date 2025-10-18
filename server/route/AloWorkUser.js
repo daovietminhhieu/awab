@@ -38,7 +38,6 @@ const {
   
   
   getPosts,
-  getPostBySlug,
   createPost,
   updatePost,
   deletePost,
@@ -96,7 +95,6 @@ router.post("/pause-unpause-programm", auth, role(["admin"]), pauseOrunpauseProg
 
 router.get("/posts", getPosts);
 router.get("/post", getPostsByType);
-router.get("/:slug", getPostBySlug);
 router.post("/", auth, role(["recruiter"]), createPost);
 router.put("/update/:id", updatePost);
 router.delete("/remove/:id", deletePost);
