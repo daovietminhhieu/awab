@@ -110,7 +110,7 @@ router.post("/referrals-request", auth, role(["recruiter"]), makeReferralsReques
 router.patch("/referrals/:id/steps/:stepNumber/request", auth, role(["recruiter"]), recruiterRequestStepUpdate);
 // Recruiter xem potentials của mình
 router.get("/my-potentials", auth, role(["recruiter"]), getPotentialsForRecruiter);
-
+//
 
 // ============================================================ ADMIN & RECRUITER ==========================================================
 router.get("/my-referrals", auth, role(["recruiter", "admin"]), getReferralsList);
