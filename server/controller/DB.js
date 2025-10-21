@@ -94,6 +94,29 @@ const restartUsers = async (req, res) => {
   }
 };
 
+const setUserBalance = async (req, res) => {
+  try {
+
+    const { id, newBalance } = req.body;
+    const user = await AloWorkUser.findById(id);
+
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    user.balance = newBalance;
+    
+    await user.save();
+    res.status(200).json({
+      success: true,
+      message: 'New balance setted'
+    });
+
+  } catch(err) {
+    res.status(500).json({ success:false, message: 'Failed set balance', error:err.message })
+  }
+}
+
 // ===================================================== Programm parts =====================================================
 const Programm = require("../model/Programm");
 
@@ -330,32 +353,38 @@ const jwt = require("jsonwebtoken");
 // REGISTER
 const doRegister = async (req, res) => {
   try {
-    const { name, phone, email, password, role } = req.body;
+      const { name, phone, email, password, role } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ success: false, message: "Email and password required" });
-    }
+      if (!email || !password) {
+          return res.status(400).json({ success: false, message: "Email and password are required" });
+      }
 
-    const existing = await AloWorkUser.findOne({ email });
-    if (existing) {
-      return res.status(400).json({ success: false, message: "Email already exists" });
-    }
+      const existingUser = await AloWorkUser.findOne({ email });
+      if (existingUser) {
+          return res.status(400).json({ success: false, message: "Email already exists" });
+      }
 
-    const user = await AloWorkUser.create({
-      name,
-      phone,
-      email,
-      password,
-      role,
-    });
+      const user = await AloWorkUser.create({
+          name,
+          phone,
+          email,
+          password,
+          role,
+      });
 
-    res.status(201).json({
-      success: true,
-      message: "User registered successfully",
-      data: { id: user._id, phone: user.phone, email: user.email, role: user.role },
-    });
+      return res.status(201).json({
+          success: true,
+          message: "User registered successfully",
+          data: {
+              id: user._id,
+              phone: user.phone,
+              email: user.email,
+              role: user.role,
+          },
+      });
   } catch (err) {
-    res.status(500).json({ success: false, message: "Register failed", error: err.message });
+      console.error("Error during registration:", err.stack); // Log the full error stack
+      return res.status(500).json({ success: false, message: "Registration failed", error: err.message });
   }
 };
 
@@ -413,6 +442,7 @@ module.exports = {
   deleteProgrammById,
   updateAllProgrammsTypeCategoryRandom,
   restartProgramms,
+  setUserBalance,
 
   // Referrals & Candidate
   fillInformation,

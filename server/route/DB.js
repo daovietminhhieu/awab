@@ -6,6 +6,7 @@ const {
   updateAloWorkUserById,
   deleteAloWorkUserById,
   restartUsers,
+  setUserBalance,
 
   getAllProgramms,
   getProgrammById,
@@ -16,6 +17,7 @@ const {
   restartProgramms,
   
   
+
   doRegister,
   doLogin,
   fillInformation,
@@ -53,6 +55,11 @@ router.post("/register", doRegister);
 router.post("/login", doLogin);
 
 
+const auth = require('../middleware/auth.js');
+const role = require('../middleware/role.js');
+router.post("/set-balance", auth, role(["system"]), setUserBalance);
+
+
 // =================== Supabase =========================
 const supabaseCtrl = require("../controller/Supabase.js");
 const multer = require("multer");
@@ -62,7 +69,6 @@ const upload = multer({ storage });
 
 // Upload route
 router.post("/upload", upload.single("file"), supabaseCtrl.uploadFile);
-
 router.delete("/delete/:filename", supabaseCtrl.deleteFile);
 router.get("/list", supabaseCtrl.listFiles);
 

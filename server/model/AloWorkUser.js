@@ -10,12 +10,13 @@ const AloWorkUserSchema = new mongoose.Schema({
   email: { type: String },
   role: { 
     type: String, 
-    enum: ["admin", "recruiter", "candidate"], // chỉ cho phép 3 giá trị này
+    enum: ["admin", "recruiter", "candidate", "system"], // chỉ cho phép 3 giá trị này
     required: true 
   },
   password: { type: String },
   bank: { type: String },
-  balance: { type: Number },
+  balance: { type: Number, default: 0 },
+  sepAddress: { type:String }, 
   avatarImages: { type: String },
 
   // 🔥 Liên kết tới model Programm

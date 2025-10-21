@@ -10,6 +10,51 @@ const StepSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now },
 });
 
+const ReviewSchema = new mongoose.Schema({
+  user: { type: mongoose.Schema.Types.ObjectId, ref: "AloWorkUser" },
+  rating: { type: Number, min: 1, max: 5 }, // Giới hạn số sao từ 1 đến 5
+  content: { type: String }, // Nội dung đánh giá
+  createdAt: { type: Date, default: Date.now }, // Ngày tạo
+});
+
+const orderSchema = new mongoose.Schema({
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'AloWorkUser',
+    required: true
+  },
+ 
+  phoneNumber: {
+    type: String,
+    required: true
+  },
+  price: {
+    type: Number,
+    required: false
+  },
+  currency: {
+    type: String,
+    required: false
+  },
+  order_code: {
+    type: String,
+    unique: true,     // <-- gây lỗi nếu bạn không set giá trị
+    sparse: true      // <-- cho phép nhiều giá trị `null`
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'active', 'completed', 'expired', 'cancelled'],
+    default: 'pending'
+  },
+  // createdAt được tự động tạo bởi timestamps: true
+  expiresAt: {
+    type: Date
+  },
+}, {
+  timestamps: true
+});
+
+
 const ProgrammSchema = new mongoose.Schema({
   title: { type: String },
   company: { type: String },
@@ -35,11 +80,11 @@ const ProgrammSchema = new mongoose.Schema({
     certificate: { type: String },
   },
   benefit: { type: String },
-  review: { type: String },
+  review: ReviewSchema,
   qa: { type: String },
   videos: { type: String },
   number_of_comments: { type: String },
-  is_active: {type: String, default: "true"},
+  is_active: { type: String, default: "true" },
   completed: { type: String },
   public_day: { type: String },
   type_category: {
@@ -58,6 +103,9 @@ const ProgrammSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "Referrals",
   },
+  order: orderSchema,
+
+
 });
 
 const Programm = mongoose.model("Programm", ProgrammSchema);

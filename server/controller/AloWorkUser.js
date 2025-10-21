@@ -1,7 +1,7 @@
 const AloWorkUser = require("../model/AloWorkUser");
 const Referrals = require("../model/Referrals");
 const Potential = require("../model/Potential");
-const Transaction = require("../model/Transaction");
+const Transaction = require("../model/AloWorkSepayTransaction");
 const Programm = require("../model/Programm");
 // ------------------------------- HELPERS -------------------------------
 
