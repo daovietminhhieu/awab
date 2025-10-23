@@ -24,6 +24,7 @@ const {
   updateProgrammById,
   resetReferrals,
   pauseOrunpauseProgrammById,
+  updateProgrammReview,
 
   // RECRUITER
   recruiterRequestStepUpdate,
@@ -91,6 +92,8 @@ router.post("/programm/new", auth, role(["admin"]), addProgramm);
 router.patch("/programm/edit/:id", auth, role(["admin"]), updateProgrammById);
 router.delete("/programm/delete/:id", auth, role(["admin"]), deleteProgrammById);
 router.post("/pause-unpause-programm", auth, role(["admin"]), pauseOrunpauseProgrammById);
+router.patch("/programm/:id/review", updateProgrammReview);
+
 
 
 router.get("/posts", getPosts);

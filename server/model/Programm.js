@@ -11,48 +11,12 @@ const StepSchema = new mongoose.Schema({
 });
 
 const ReviewSchema = new mongoose.Schema({
-  user: { type: mongoose.Schema.Types.ObjectId, ref: "AloWorkUser" },
-  rating: { type: Number, min: 1, max: 5 }, // Giới hạn số sao từ 1 đến 5
+  // user: { type: mongoose.Schema.Types.ObjectId, ref: "AloWorkUser" },
+  rate: { type: Number, min: 1, max: 5 }, // Giới hạn số sao từ 1 đến 5
   content: { type: String }, // Nội dung đánh giá
   createdAt: { type: Date, default: Date.now }, // Ngày tạo
 });
 
-const orderSchema = new mongoose.Schema({
-  userId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'AloWorkUser',
-    required: true
-  },
- 
-  phoneNumber: {
-    type: String,
-    required: true
-  },
-  price: {
-    type: Number,
-    required: false
-  },
-  currency: {
-    type: String,
-    required: false
-  },
-  order_code: {
-    type: String,
-    unique: true,     // <-- gây lỗi nếu bạn không set giá trị
-    sparse: true      // <-- cho phép nhiều giá trị `null`
-  },
-  status: {
-    type: String,
-    enum: ['pending', 'active', 'completed', 'expired', 'cancelled'],
-    default: 'pending'
-  },
-  // createdAt được tự động tạo bởi timestamps: true
-  expiresAt: {
-    type: Date
-  },
-}, {
-  timestamps: true
-});
 
 
 const ProgrammSchema = new mongoose.Schema({
@@ -80,7 +44,7 @@ const ProgrammSchema = new mongoose.Schema({
     certificate: { type: String },
   },
   benefit: { type: String },
-  review: ReviewSchema,
+  reviews: [ReviewSchema],
   qa: { type: String },
   videos: { type: String },
   number_of_comments: { type: String },
@@ -103,7 +67,6 @@ const ProgrammSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "Referrals",
   },
-  order: orderSchema,
 
 
 });

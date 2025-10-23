@@ -3,6 +3,7 @@ const Referrals = require("../model/Referrals");
 const Potential = require("../model/Potential");
 const Transaction = require("../model/AloWorkSepayTransaction");
 const Programm = require("../model/Programm");
+const jwt = require('jsonwebtoken');
 // ------------------------------- HELPERS -------------------------------
 
 // Tạo response chuẩn
@@ -47,11 +48,11 @@ const getProfile = async (req, res) => {
 
 const updateProfile = async (req, res) => {
   try {
+    console.log("UpdateProfile body:", req.body);
 
     const user = await AloWorkUser.findById(req.user.id);
     if (!user) return respond(res, 404, false, "User not found");
 
-    // chỉ cho phép update name, email, password
     if (req.body.name) user.name = req.body.name;
     if (req.body.email) user.email = req.body.email;
     if (req.body.password) user.password = req.body.password;
@@ -73,6 +74,7 @@ const updateProfile = async (req, res) => {
     return respond(res, 400, false, "Update failed", err.message || err);
   }
 };
+
 
 const getReferralsList = async (req, res) => {
   try {
@@ -653,6 +655,57 @@ const updateProgrammById = async (req, res) => {
   }
 };
 
+
+
+// Thêm review cho 1 chương trình
+const updateProgrammReview = async (req, res) => {
+  try {
+    const { id } = req.params; // ID của chương trình
+    const { rate, content, user } = req.body; // user có thể thêm nếu muốn lưu người review
+
+    // Kiểm tra rate hợp lệ
+    if (!rate || rate < 1 || rate > 5) {
+      return res.status(400).json({ success: false, message: "Rate phải từ 1 đến 5" });
+    }
+
+    const programm = await Programm.findById(id);
+    if (!programm) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy chương trình" });
+    }
+
+    // Khởi tạo mảng review nếu chưa có
+    if (!programm.reviews) {
+      programm.reviews = [];
+    }
+
+    // Tạo reviews mới
+    const newReview = {
+      rate,
+      content,
+      createdAt: new Date(),
+    };
+
+    // Nếu muốn lưu người reviews
+    if (user) newReview.user = user;
+
+    // Push vào mảng reviews
+    programm.reviews.push(newReview);
+
+    // Cập nhật tổng số reviews (nếu cần)
+    // programm.reviewCount = programm.reviews.length;
+
+    await programm.save();
+
+    res.json({ success: true, message: "Đã thêm reviews", data: newReview });
+  } catch (err) {
+    console.error("❌ Failed to add reviews:", err);
+    res.status(500).json({ success: false, message: "Failed to add reviews", data: err.message });
+  }
+};
+
+module.exports = { updateProgrammReview };
+
+
 // Delete programm by ID
 const deleteProgrammById = async (req, res) => {
   try {
@@ -738,7 +791,8 @@ module.exports = {
   saveProgramm,
   unsaveProgramm,
   getSavedProgramms,
-
+  updateProgrammReview,
+  
   // ADMIN
   getAllUsers,
   rejectedReferralsRequestsById,

@@ -93,6 +93,27 @@ async function deleteAllPosts(token) {
   console.log("✅ All posts deleted");
 }
 
+// Reset referral list
+async function resetReferrals(token) {
+  console.log("♻️ Resetting all referrals...");
+  const res = await fetch(`${BASE_URL}/reset-referrals`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.message || "Failed to reset referrals");
+  }
+
+  console.log("✅ Referrals reset successfully:", data.message);
+  return data;
+}
+
+
 // =============================
 // 🧪 TEST FLOW
 // =============================
@@ -102,8 +123,10 @@ async function runTests() {
 
     const token = await getToken("admin");
 
-    await deleteAllPosts(token);
-    await getAllPosts();
+    await resetReferrals(token);
+
+    // await deleteAllPosts(token);
+    // await getAllPosts();
     // // 1. Success Story post
     // await createPost(token, {
     //   type: "success_story",

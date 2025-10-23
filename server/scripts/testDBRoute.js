@@ -1,25 +1,33 @@
-const fs = require("fs");
-const path = require("path");
-const { Blob } = require("buffer");
-const fetch = global.fetch || require("node-fetch"); // fallback nếu Node <18
-
-const BASE_URL = "http://0.0.0.0:3000/alowork/db";
-
 /**
- * 🧪 Upload file lên Supabase Storage
+ * 🧩 Seed dữ liệu Programms vào MongoDB qua API
+ * Author: ChatGPT
  */
-async function testUploadFile(filePath) {
-  console.log(`➡️ Testing POST ${BASE_URL}/upload (Upload File) ...`);
 
+const fetch = global.fetch || require("node-fetch");
+const { makeProgrammList } = require("../migrate/Programm"); // 👈 file mock bạn đã có
+const BASE_URL = "http://0.0.0.0:3000/alowork/db/programm";
+
+// ======================
+// ⚙️ API Helper Functions
+// ======================
+
+async function deleteAllProgramms() {
+  console.log(`➡️ DELETE ${BASE_URL}/restart/all`);
   try {
-    const formData = new FormData();
-    const buffer = fs.readFileSync(filePath);
-    const blob = new Blob([buffer], { type: "image/jpeg" });
-    formData.append("file", blob, path.basename(filePath));
+    const res = await fetch(`${BASE_URL}/restart/all`, { method: "DELETE" });
+    const data = await res.json();
+    console.log("✅ Đã xóa toàn bộ Programms:", data);
+  } catch (err) {
+    console.error("❌ Lỗi khi xóa dữ liệu:", err.message);
+  }
+}
 
-    const response = await fetch(`${BASE_URL}/upload`, {
+async function createProgramm(programm) {
+  try {
+    const response = await fetch(BASE_URL, {
       method: "POST",
-      body: formData,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(programm),
     });
 
     const text = await response.text();
@@ -27,82 +35,51 @@ async function testUploadFile(filePath) {
     try {
       data = JSON.parse(text);
     } catch {
-      console.error("❌ Server không trả JSON, trả:", text.slice(0, 200));
-      return;
+      console.error("❌ Server trả về không phải JSON:", text);
+      return null;
     }
 
-    if (!response.ok) throw new Error(data.error || "Upload failed");
-    console.log("✅ Upload file response:", data);
-    return data.publicUrl;
+    if (!response.ok) throw new Error(data.error || "Lỗi khi tạo Programm");
+    return data;
   } catch (err) {
-    console.error("❌ Error Upload file:", err.message);
+    console.error("❌ Lỗi khi tạo Programm:", err.message);
+    return null;
   }
 }
 
-/**
- * 📋 Liệt kê danh sách file
- */
-async function testListFiles() {
-  console.log(`➡️ Testing GET ${BASE_URL}/list ...`);
-
+async function listProgramms() {
+  console.log(`➡️ GET ${BASE_URL}`);
   try {
-    const response = await fetch(`${BASE_URL}/list`);
-    const text = await response.text();
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      console.error("❌ Server không trả JSON, trả:", text.slice(0, 200));
-      return;
-    }
-
-    if (!response.ok) throw new Error(data.error || "List files failed");
-    console.log("✅ List files response:", data);
+    const res = await fetch(BASE_URL);
+    const data = await res.json();
+    console.log(`✅ Có ${data.length || 0} chương trình trong DB.`);
   } catch (err) {
-    console.error("❌ Error List files:", err.message);
+    console.error("❌ Lỗi khi lấy danh sách:", err.message);
   }
 }
 
-/**
- * 🗑️ Xóa file theo tên
- */
-async function testDeleteFile(filename) {
-  console.log(`➡️ Testing DELETE ${BASE_URL}/delete/${filename} ...`);
-  try {
-    const response = await fetch(`${BASE_URL}/delete/${filename}`, {
-      method: "DELETE",
-    });
-    const data = await response.json();
+// ======================
+// 🚀 Seed Main Function
+// ======================
 
-    if (!response.ok) throw new Error(data.error || "Delete failed");
-    console.log("✅ Delete file response:", data);
-  } catch (err) {
-    console.error("❌ Error Delete file:", err.message);
+(async () => {
+  console.log("🧩 Bắt đầu seed dữ liệu Programms ...");
+
+  // 1️⃣ Xóa dữ liệu cũ
+  await deleteAllProgramms();
+
+  // 2️⃣ Tạo danh sách mới
+  const programms = makeProgrammList(10); // tạo 10 chương trình mẫu
+  console.log(`➡️ Tạo ${programms.length} Programms mẫu.`);
+
+  // 3️⃣ Gửi tuần tự từng Programm lên API
+  for (const [index, p] of programms.entries()) {
+    const result = await createProgramm(p);
+    if (result) console.log(`✅ ${index + 1}/${programms.length} - Đã thêm: ${p.title}`);
   }
-}
 
-/**
- * 🚀 Chạy toàn bộ test
- */
-async function runTests() {
-  console.log("Start Supabase Tests...");
+  // 4️⃣ Kiểm tra kết quả
+  await listProgramms();
 
-  console.log(path.resolve("."));
-  const localFilePath = path.resolve("./scripts/bg.jpg");
-
-  // 1️⃣ Upload file
-  const publicUrl = await testUploadFile(localFilePath);
-
-  // 2️⃣ Lấy danh sách file
-  await testListFiles();
-
-  // 3️⃣ Xóa file (nếu upload thành công)
-  // if (publicUrl) {
-  //   const filename = publicUrl.split("/").pop();
-  //   await testDeleteFile(filename);
-  // }
-
-  console.log("✅ Supabase test completed.");
-}
-
-runTests();
+  console.log("🎉 Hoàn tất seed dữ liệu Programms!");
+})();
