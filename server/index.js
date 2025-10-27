@@ -31,7 +31,6 @@ app.use((req, res, next) => {
 app.use(express.json());
 app.use("/alowork/db", require("./route/DB"));
 app.use("/alowork/user", require("./route/AloWorkUser"));
-app.use("/alowork/commissions", require("./route/Commissions"));
 
 
 // Health check endpoint

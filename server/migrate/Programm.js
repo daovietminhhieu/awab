@@ -153,7 +153,7 @@ const title = [
     return {
       title: randomFromArray(title),
       company: randomFromArray(company),
-      logoL: randomFromArray(logoLink),
+      logoL: "",
       type: randomFromArray(type),
       degrees: randomFromArray(degrees),
       duration: randomFromArray(duration),
@@ -169,7 +169,7 @@ const title = [
       benefit: randomFromArray(benefit),
       reviews: makeReview(),
       qa: randomFromArray(qa),
-      videos: randomFromArray(videos),
+      videos: "",
       number_of_comments: randomFromArray(number_of_comments),
       is_active: randomFromArray(is_active),
       completed: randomFromArray(completed),

@@ -64,10 +64,16 @@ router.patch("/referrals/:id/approve", auth, role(["admin"]), (req, res) => {
   req.body.id = req.params.id;
   approvedReferralsRequestsById(req, res);
 });
-router.patch("/referrals/:id/reject", auth, role(["admin"]), (req, res) => {
-  req.body.id = req.params.id;
-  rejectedReferralsRequestsById(req, res);
+router.patch("/referrals/:id/reject", auth, role(["admin"]), async (req, res) => {
+  try {
+    console.log("📩 PATCH /referrals/:id/reject called with id =", req.params.id);
+    await rejectedReferralsRequestsById(req, res, req.params.id);
+  } catch (err) {
+    console.error("🔥 Error in reject route:", err);
+    res.status(500).json({ success: false, message: "Internal server error", error: err.message });
+  }
 });
+
 router.patch("/referrals/:id/ongoing", auth, role(["admin"]), onGoingReferralsRequestsById);
 // Admin phê duyệt / từ chối step
 router.patch(
@@ -76,8 +82,9 @@ router.patch(
   role(["admin"]),
   adminConfirmCompleteStep
 );
-
 router.patch("/referrals/:id/steps/:stepNumber/rejected", auth, role(["admin"]), adminRejectStep);
+// router.delete("/referrals/remove/:id", auth, role(["admin"]), removeReferralById);
+// router.post("/referrals/update/:id", auth, role(["admin","recruiter"], updateReferralById));
 // Admin xem toàn bộ potentials
 router.get("/potentials", auth, role(["admin"]), getAllPotentialsForAdmin);
 // Admin xem toàn bộ transactions
@@ -85,7 +92,7 @@ router.get("/transactions", auth, role(["admin"]), getAllTransactions);
 // Admin reset Transactions
 router.delete("/reset-transactions", auth, role(["admin"]), resetTransactions);
 // Admin reset Potentials
-router.delete("/reset-potentials", auth, role(["admin"]), resetPotentials);
+router.delete("/reset-potentials", auth, role(["admin","recruiter"]), resetPotentials);
 // Admin reset Referrals
 router.delete("/reset-referrals", auth, role(["admin"]), resetReferrals);
 router.post("/programm/new", auth, role(["admin"]), addProgramm);

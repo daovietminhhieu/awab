@@ -5,6 +5,7 @@ const LOGIN_URL = `${DB_URL}/login`;
 // 👤 Credential test
 const credential = {
   admin: { email: "admin@example.com", password: "123456" },
+  recruiter: { email: "test@examplecom", password: "123456" } 
 };
 
 // ====================== HELPERS ======================
@@ -93,6 +94,33 @@ async function deleteAllPosts(token) {
   console.log("✅ All posts deleted");
 }
 
+async function resetPotentials(token, role) {
+  console.log(`♻️ Testing resetPotentials as ${role}...`);
+  const res = await fetch(`${BASE_URL}/reset-potentials`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(
+      `❌ ${role} failed to reset potentials: ${res.status} ${data.message}`
+    );
+  }
+
+  if (!data.success) {
+    throw new Error(`❌ ${role} response invalid: ${JSON.stringify(data)}`);
+  }
+
+  console.log(
+    `✅ ${role} reset potentials successfully: ${data.message || "OK"}`
+  );
+  return data;
+}
+
 // Reset referral list
 async function resetReferrals(token) {
   console.log("♻️ Resetting all referrals...");
@@ -119,11 +147,18 @@ async function resetReferrals(token) {
 // =============================
 async function runTests() {
   try {
-    console.log("🚀 Running Post API Tests with fetch...\n");
+    console.log("🚀 Running Reset Potentials API tests...\n");
 
-    const token = await getToken("admin");
+    // --- ADMIN TEST ---
+    const adminToken = await getToken("admin");
+    await resetPotentials(adminToken, "admin");
 
-    await resetReferrals(token);
+    // --- RECRUITER TEST ---
+    const recruiterToken = await getToken("recruiter");
+    await resetPotentials(recruiterToken, "recruiter");
+
+    console.log("\n✅ All resetPotentials tests passed successfully!");
+
 
     // await deleteAllPosts(token);
     // await getAllPosts();

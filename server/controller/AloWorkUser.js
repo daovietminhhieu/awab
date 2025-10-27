@@ -1,7 +1,6 @@
 const AloWorkUser = require("../model/AloWorkUser");
 const Referrals = require("../model/Referrals");
 const Potential = require("../model/Potential");
-const Transaction = require("../model/AloWorkSepayTransaction");
 const Programm = require("../model/Programm");
 const jwt = require('jsonwebtoken');
 // ------------------------------- HELPERS -------------------------------
@@ -13,7 +12,12 @@ const respond = (res, status, success, message, data = null) => {
 
 // Lấy referral theo id (populate đầy đủ)
 const findReferralById = async (id) => {
-  return await Referrals.findById(id).populate("programm recruiter candidate admin");
+  try {
+    return await Referrals.findById(id).populate("programm recruiter candidate admin");
+  } catch (err) {
+    console.error("❌ findReferralById error:", err);
+    return null;
+  }
 };
 
 // ------------------------------- USER ROUTES -------------------------------
@@ -289,9 +293,10 @@ const getAllUsers = async (req, res) => {
 };
 
 
-const rejectedReferralsRequestsById = async (req, res) => {
+const rejectedReferralsRequestsById = async (req, res, idParam) => {
   try {
-    const referral = await findReferralById(req.body.id);
+    const id = idParam || req.body.id; // ưu tiên param
+    const referral = await findReferralById(id);
     if (!referral) return respond(res, 404, false, "Referral not found");
 
     referral.status = "rejected";
@@ -299,9 +304,11 @@ const rejectedReferralsRequestsById = async (req, res) => {
 
     return respond(res, 200, true, "Referral rejected successfully", referral);
   } catch (err) {
+    console.error("🔥 [RejectReferral] Error:", err);
     return respond(res, 500, false, "Server error", err.message);
   }
 };
+
 
 const onGoingReferralsRequestsById = async (req, res) => {
   try {
