@@ -38,7 +38,7 @@ const {
   getSavedProgramms,
   
   
-  getPosts,
+  getPosts,getPostById,
   createPost,
   updatePost,
   deletePost,
@@ -105,7 +105,8 @@ router.patch("/programm/:id/review", updateProgrammReview);
 
 router.get("/posts", getPosts);
 router.get("/post", getPostsByType);
-router.post("/", auth, role(["recruiter"]), createPost);
+router.get("/post/:id", getPostById);
+router.post("/", auth, role(["admin"]), createPost);
 router.put("/update/:id", updatePost);
 router.delete("/remove/:id", deletePost);
 router.delete("/posts/delete-all", auth, role(["admin"]), deleteAllPosts);

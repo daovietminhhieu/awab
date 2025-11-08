@@ -479,37 +479,106 @@ const getPostBySlug = async (req, res) => {
   }
 };
 
-// 📌 Tạo bài viết mới
-const createPost = async (req, res) => {
+// Controller function to get a Post by ID
+const getPostById = async (req, res) => {
   try {
-    const { type, title, thumbnail_url, content, location, event_date, status } = req.body;
+    const postId = req.params.id;
 
-    if (!type || !title || !thumbnail_url) {
-      return res.status(400).json({ success: false, message: "Thiếu trường bắt buộc. Kiểu bài viết, tên tiêu đề hoặc link ảnh bị thiếu." });
+    // Find the post by ID in the database
+    const post = await Post.findById(postId).populate('progId'); // Populate the associated 'programm' if needed
+
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        message: "Post not found",
+      });
     }
 
-    
-
-    const post = new Post({
-      type,
-      title,
-      thumbnail_url,
-      content: content || "",
-      location: location || "",
-      event_date: event_date ? new Date(event_date) : null,
-      status: status || "draft",
-      publishedAt: status === "published" ? new Date() : null,
-      author: req.user?.id || "admin",
+    // Return the found post
+    res.status(200).json({
+      success: true,
+      data: post,
     });
-
-    await post.save();
-
-    res.status(201).json({ success: true, data: post });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: "Lỗi server" });
+    console.error("❌ Error fetching post:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+      error: error.message,
+    });
   }
 };
+
+/* =========================================================
+   🟢 CREATE POST
+   ========================================================= */
+   const createPost = async (req, res) => {
+    try {
+      const {
+        type,
+        title,
+        thumbnail_url,
+        content,
+        location,
+        eventDate,  // 👈 nhận object {date, startTime, endTime}
+        status,
+        progId,
+      } = req.body;
+  
+      // Kiểm tra dữ liệu đầu vào
+      if (!type || !title || !thumbnail_url || !progId) {
+        return res.status(400).json({
+          success: false,
+          message: "Thiếu trường bắt buộc: type, title, thumbnail_url hoặc progId.",
+        });
+      }
+  
+      // Kiểm tra sự tồn tại của chương trình
+      const programm = await Programm.findById(progId);
+      if (!programm) {
+        return res.status(404).json({
+          success: false,
+          message: "Chương trình không tồn tại.",
+        });
+      }
+  
+      // Tạo mới Post
+      const post = new Post({
+        type,
+        title,
+        thumbnail_url,
+        content: content || "",
+        location: location || "",
+        eventDate: type === "upcoming_event" ? eventDate : undefined,
+        status: status || "draft",
+        publishedAt: status === "published" ? new Date() : null,
+        author: req.user?.id || "admin",
+        progId,
+      });
+  
+      await post.save();
+  
+      // Đảm bảo Programm có details.other là mảng
+      if (!programm.details) programm.details = {};
+      if (!Array.isArray(programm.details.other)) programm.details.other = [];
+  
+      programm.details.other.push(post._id);
+      await programm.save();
+  
+      return res.status(201).json({
+        success: true,
+        message: "Tạo bài viết thành công!",
+        data: post,
+      });
+    } catch (error) {
+      console.error("❌ Error creating post:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Lỗi khi tạo bài viết. Vui lòng thử lại sau.",
+        error: error.message,
+      });
+    }
+  };
 
 
 const updatePost = async (req, res) => {
@@ -816,6 +885,7 @@ module.exports = {
   
   getPosts,
   getPostBySlug,
+  getPostById,
   createPost,
   updatePost,
   deletePost,

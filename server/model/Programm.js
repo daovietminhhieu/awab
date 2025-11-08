@@ -35,7 +35,12 @@ const ProgrammSchema = new mongoose.Schema({
   hired: { type: String }, 
   details: {
     overview: { type: String },
-    other: { type: String },
+    other: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Post",
+      }
+    ],
   },
   requirement: {
     age: { type: String },
@@ -51,10 +56,9 @@ const ProgrammSchema = new mongoose.Schema({
   is_active: { type: String, default: "true" },
   completed: { type: String },
   public_day: { type: String },
-  type_category: {
+  category: {
     type: String,
     enum: ["job", "studium"],
-    required: true,
   },
   steps: [StepSchema],
   // 🔥 Liên kết tới model AloWorkUser

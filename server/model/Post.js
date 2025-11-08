@@ -9,7 +9,7 @@ const PostSchema = new mongoose.Schema(
       required: true,
     },
 
-    // chung cho success_story, career_tip, upcoming_event
+    // Dùng chung
     title: {
       type: String,
       required: [true, "Title is required"],
@@ -20,22 +20,21 @@ const PostSchema = new mongoose.Schema(
       unique: true,
       index: true,
     },
-    thumbnail_url: {
-      type: String,
-    },
-    content: {
-      type: String, // HTML cho success_story và career_tip
+    thumbnail_url: String,
+    content: String,
+    progId: String,
+
+    // Riêng cho upcoming_event
+    location: String,
+
+    eventDate: {
+      date: { type: String },       // YYYY-MM-DD
+      startTime: { type: String },  // HH:mm
+      endTime: { type: String },    // HH:mm
     },
 
-    // riêng upcoming_event
-    location: {
-      type: String,
-    },
-    event_date: {
-      type: Date,
-    },
     author: {
-      type: String, // hoặc ObjectId ref User nếu cần
+      type: String,
       default: "admin",
     },
     status: {
@@ -43,9 +42,7 @@ const PostSchema = new mongoose.Schema(
       enum: ["draft", "published"],
       default: "draft",
     },
-    publishedAt: {
-      type: Date,
-    },
+    publishedAt: Date,
   },
   { timestamps: true }
 );
@@ -60,7 +57,6 @@ PostSchema.pre("save", async function (next) {
     while (await mongoose.models.Post.findOne({ slug })) {
       slug = `${baseSlug}-${counter++}`;
     }
-
     this.slug = slug;
   }
   next();
