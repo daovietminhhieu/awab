@@ -5,7 +5,7 @@ const LOGIN_URL = `${DB_URL}/login`;
 // 👤 Credential test
 const credential = {
   admin: { email: "admin@example.com", password: "123456" },
-  recruiter: { email: "test@examplecom", password: "123456" } 
+  recruiter: { email: "test@example.com", password: "123456" } 
 };
 
 // ====================== HELPERS ======================
@@ -121,6 +121,65 @@ async function resetPotentials(token, role) {
   return data;
 }
 
+async function deleteReferralsWithNullCandidate(token) {
+  console.log("🗑️ Deleting referrals with null candidate...");
+  const res = await fetch(`${BASE_URL}/referrals/delete-empty-candidate`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || "Failed to delete referrals with null candidate");
+  }
+  console.log("✅ Deleted referrals with null candidate:", data.message);
+  return data;
+}
+
+async function getReferrals(token) {
+  console.log("🔍 Fetching referrals...");
+  try {
+    const res = await fetch(`${BASE_URL}/my-referrals`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (res.status === 401 || res.status === 403) {
+      throw new Error(`Unauthorized (status ${res.status}) - invalid token or permissions`);
+    }
+
+    // try to parse JSON safely
+    let data;
+    try {
+      data = await res.json();
+    } catch (parseErr) {
+      throw new Error(`Failed to parse JSON response: ${parseErr.message}`);
+    }
+
+    if (!res.ok) {
+      // If server returned an error object, include its message
+      const serverMsg = data && data.message ? data.message : JSON.stringify(data);
+      throw new Error(`Failed to fetch referrals: ${serverMsg}`);
+    }
+
+    // If the API returns data.data as an array, return that; otherwise return whole payload
+    if (data && Array.isArray(data.data)) {
+      console.log(`✅ Fetched ${data.data.length} referrals`);
+      return data.data;
+    }
+
+    console.log("✅ Fetched referrals (non-array payload)");
+    return data;
+  } catch (err) {
+    console.error("getReferrals error:", err.message || err);
+    throw err;
+  }
+}
+
 // Reset referral list
 async function resetReferrals(token) {
   console.log("♻️ Resetting all referrals...");
@@ -151,67 +210,15 @@ async function runTests() {
 
     // --- ADMIN TEST ---
     const adminToken = await getToken("admin");
-    await resetPotentials(adminToken, "admin");
+    // await resetPotentials(adminToken, "admin");
 
     // --- RECRUITER TEST ---
     const recruiterToken = await getToken("recruiter");
-    await resetPotentials(recruiterToken, "recruiter");
-
-    console.log("\n✅ All resetPotentials tests passed successfully!");
-
-
-    // await deleteAllPosts(token);
-    // await getAllPosts();
-    // // 1. Success Story post
-    // await createPost(token, {
-    //   type: "success_story",
-    //   title: "Câu chuyện thành công tự động",
-    //   thumbnail_url: "https://placehold.co/600x400",
-    //   content: "<p>Đây là nội dung câu chuyện thành công.</p>",
-    //   status: "published",
-    //   author: "Test Script",
-    // });
-
-    // // 2. Career Tip post
-    // await createPost(token, {
-    //   type: "career_tip",
-    //   title: "Mẹo nghề nghiệp tự động",
-    //   thumbnail_url: "https://placehold.co/600x400",
-    //   content: "<p>Đây là nội dung mẹo nghề nghiệp.</p>",
-    //   status: "published",
-    //   author: "Test Script",
-    // });
-
-    // // 3. Upcoming Event post
-    // await createPost(token, {
-    //   type: "upcoming_event",
-    //   title: "Sự kiện sắp tới tự động",
-    //   thumbnail_url: "https://placehold.co/600x400",
-    //   location: "Hà Nội",
-    //   eventDate: "2025-12-01",
-    //   status: "published",
-    //   author: "Test Script",
-    // });
-
-    // // Lấy tất cả posts
-    // const allPosts = await getAllPosts();
-    // console.log(`📊 Total posts: ${allPosts.length}`);
-    // console.log("Posts list: ", allPosts);
-
-    // // Lấy theo type
-    // const types = ["success_story", "career_tip", "upcoming_event"];
-    // for (const type of types) {
-    //   const result = await getPostsByType(type);
-    //   const posts = result.data;
-
-    //   if (!Array.isArray(posts) || posts.length === 0) {
-    //     throw new Error(`Post not found for type: ${type}`);
-    //   }
-
-    //   console.log(`✅ Confirmed ${posts.length} posts for type: ${type}`);
-    // }
-
-    // console.log("\n✅ All Post API tests completed successfully!");
+    // await resetPotentials(recruiterToken, "recruiter");
+    const data = await getReferrals(adminToken);
+    // console.log("Referrals data:", data);
+    // console.log("\n✅ All resetPotentials tests passed successfully!");
+    await deleteReferralsWithNullCandidate(adminToken);
 
   } catch (err) {
     console.error("❌ Test failed:", err.message);

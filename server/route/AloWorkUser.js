@@ -20,12 +20,13 @@ const {
   adminRejectStep,  
   resetTransactions,
   resetPotentials,
+  deleteReferralsWithNullCandidate,
   addProgramm,
   updateProgrammById,
   resetReferrals,
   pauseOrunpauseProgrammById,
-  updateProgrammReview,
-
+  updateProgrammReview, answerProgrammQA,
+  getProgrammQaList, sendProgrammQA,
   // RECRUITER
   recruiterRequestStepUpdate,
 
@@ -95,11 +96,16 @@ router.delete("/reset-transactions", auth, role(["admin"]), resetTransactions);
 router.delete("/reset-potentials", auth, role(["admin","recruiter"]), resetPotentials);
 // Admin reset Referrals
 router.delete("/reset-referrals", auth, role(["admin"]), resetReferrals);
+// Admin delete referrals where candidate is null
+router.delete("/referrals/delete-empty-candidate", auth, role(["admin"]), deleteReferralsWithNullCandidate);
 router.post("/programm/new", auth, role(["admin"]), addProgramm);
 router.patch("/programm/edit/:id", auth, role(["admin"]), updateProgrammById);
 router.delete("/programm/delete/:id", auth, role(["admin"]), deleteProgrammById);
 router.post("/pause-unpause-programm", auth, role(["admin"]), pauseOrunpauseProgrammById);
 router.patch("/programm/:id/review", updateProgrammReview);
+router.post("/:id/sendQa", sendProgrammQA);
+router.get("/:id/qaList", getProgrammQaList);
+router.post("/:id/qa/:qaId/answer", auth, role(["admin","recruiter"]), answerProgrammQA);
 
 
 

@@ -629,6 +629,30 @@ const resetReferrals = async (req, res) => {
   }
 };
 
+// Delete referrals that have no candidate (candidate == null) and related potentials
+const deleteReferralsWithNullCandidate = async (req, res) => {
+  try {
+    // Find referrals where candidate is null
+    const referrals = await Referrals.find({ candidate: null }).select("_id");
+    if (!referrals || referrals.length === 0) {
+      return res.status(200).json({ success: true, message: "No referrals with null candidate found", deletedCount: 0 });
+    }
+
+    const ids = referrals.map((r) => r._id);
+
+    // Delete related potentials that reference these referrals
+    await Potential.deleteMany({ referral: { $in: ids } });
+
+    // Delete the referrals
+    const result = await Referrals.deleteMany({ _id: { $in: ids } });
+
+    return res.status(200).json({ success: true, message: "Deleted referrals with null candidate", deletedCount: result.deletedCount });
+  } catch (err) {
+    console.error("❌ deleteReferralsWithNullCandidate error:", err);
+    return res.status(500).json({ success: false, message: "Failed to delete referrals", error: err.message });
+  }
+};
+
 // ------------------------------ STEP MANAGEMENT ------------------------------
 const adminConfirmCompleteStep = async (req, res) => {
   try {
@@ -779,7 +803,105 @@ const updateProgrammReview = async (req, res) => {
   }
 };
 
-module.exports = { updateProgrammReview };
+module.exports = { updateProgrammReview};
+
+const sendProgrammQA = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { question, userId, userName } = req.body;
+    console.log(req.body);
+    if (!question) {
+      return res.status(400).json({ success: false, message: "Missing question" });
+    }
+
+    const programm = await Programm.findById(id);
+    if (!programm) {
+      return res.status(404).json({ success: false, message: "Program not found" });
+    }
+
+    // Khởi tạo mảng review nếu chưa có
+    if (!programm.qa) {
+      programm.qa = [];
+    }
+
+    const newQA = {
+      question: question,
+      user: userId || null,
+      userName: userName || "Guest",
+      createdAt: new Date(),
+    };
+
+    programm.qa.push(newQA);
+    console.log("🧾 Program ID:", id);
+    console.log("🧾 QA type:", typeof programm.qa, "isArray:", Array.isArray(programm.qa));
+    console.log("🧾 QA content:", programm.qa);
+
+    console.log("newQA:", newQA);
+    console.log("programm.qa:", programm.qa);
+    await programm.save();
+
+    return res.json({ success: true, data: newQA });
+  } catch (err) {
+    console.error("❌ sendProgrammQA error:", err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+const answerProgrammQA = async (req, res) => {
+  const { id, qaId } = req.params;
+  const { answer } = req.body;
+  const userId = req.user._id;
+  const userName = req.user.name;
+  console.log(req.params);
+  console.log("programmId",id); console.log("qaId", qaId);
+
+
+  if (!answer || !answer.trim()) {
+    return res.status(400).json({ success: false, message: "Vui lòng nhập câu trả lời!" });
+  }
+
+  try {
+    const programm = await Programm.findById(id);
+    if (!programm) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy chương trình" });
+    }
+
+    // Tìm câu hỏi trong chương trình
+    const qaItem = programm.qa.find(item => item._id.toString() === qaId);
+    if (!qaItem) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy câu hỏi" });
+    }
+
+    // Cập nhật câu trả lời
+    qaItem.answer = answer.trim();
+    qaItem.answeredAt = new Date();
+    qaItem.answeredBy = userId;
+    qaItem.answeredByName = userName;
+
+    await programm.save();
+
+    return res.json({ success: true, data: qaItem });
+  } catch (err) {
+    console.error("❌ answerQA error:", err);
+    return res.status(500).json({ success: false, message: "Lỗi máy chủ" });
+  }
+};
+
+
+
+const getProgrammQaList = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const programm = await Programm.findById(id).select("qa");
+    if (!programm) {
+      return res.status(404).json({ success: false, message: "Program not found" });
+    }
+
+    return res.json({ success: true, data: programm.qa });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
 
 
 // Delete programm by ID
@@ -867,13 +989,14 @@ module.exports = {
   saveProgramm,
   unsaveProgramm,
   getSavedProgramms,
-  updateProgrammReview,
-  
+  updateProgrammReview, answerProgrammQA,
+  sendProgrammQA, getProgrammQaList,
   // ADMIN
   getAllUsers,
   rejectedReferralsRequestsById,
   adminConfirmCompleteStep,
   adminRejectStep,
+  deleteReferralsWithNullCandidate,
   resetPotentials,
   resetTransactions,
   resetReferrals,

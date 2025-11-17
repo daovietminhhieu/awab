@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
-// Schema cho các bước của referral
+
+// --- Schema cho các bước của referral ---
 const StepSchema = new mongoose.Schema({
   step: { type: Number, required: true },
   name: { type: String, required: true },
@@ -10,15 +11,27 @@ const StepSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now },
 });
 
+// --- Schema cho reviews ---
 const ReviewSchema = new mongoose.Schema({
-  // user: { type: mongoose.Schema.Types.ObjectId, ref: "AloWorkUser" },
-  rate: { type: Number, min: 1, max: 5 }, // Giới hạn số sao từ 1 đến 5
-  content: { type: String }, // Nội dung đánh giá
-  createdAt: { type: Date, default: Date.now }, // Ngày tạo
+  user: { type: mongoose.Schema.Types.ObjectId, ref: "AloWorkUser", default: null },
+  rate: { type: Number, min: 1, max: 5, required: true },
+  content: { type: String, default: "" },
+  createdAt: { type: Date, default: Date.now },
 });
 
+// --- Schema cho Q&A ---
+const ProgrammQASchema = new mongoose.Schema({
+  question: { type: String, required: true },
+  answer: { type: String, default: null },
+  user: { type: mongoose.Schema.Types.ObjectId, ref: "AloWorkUser", default: null },
+  userName: { type: String, default: "Guest" },
+  createdAt: { type: Date, default: Date.now },
+  answeredAt: { type: Date },
+  answeredBy: { type: mongoose.Schema.Types.ObjectId, ref: "AloWorkUser" },
+  answeredByName: { type: String },
+});
 
-
+// --- Schema chính của chương trình ---
 const ProgrammSchema = new mongoose.Schema({
   title: { type: String },
   company: { type: String },
@@ -32,15 +45,10 @@ const ProgrammSchema = new mongoose.Schema({
   deadline: { type: String },
   bonus: { type: String },
   vacancies: { type: String },
-  hired: { type: String }, 
+  hired: { type: String },
   details: {
     overview: { type: String },
-    other: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Post",
-      }
-    ],
+    other: [{ type: mongoose.Schema.Types.ObjectId, ref: "Post" }],
   },
   requirement: {
     age: { type: String },
@@ -49,31 +57,18 @@ const ProgrammSchema = new mongoose.Schema({
     certificate: { type: String },
   },
   benefit: { type: String },
-  reviews: [ReviewSchema],
-  qa: { type: String },
+  reviews: { type: [ReviewSchema], default: [] },
+  qa: { type: [ProgrammQASchema], default: [] }, // ✅ đảm bảo không bị validation error
   videos: { type: String },
   number_of_comments: { type: String },
   is_active: { type: String, default: "true" },
   completed: { type: String },
   public_day: { type: String },
-  category: {
-    type: String,
-    enum: ["job", "studium"],
-  },
+  category: { type: String, enum: ["job", "studium"] },
   steps: [StepSchema],
-  // 🔥 Liên kết tới model AloWorkUser
-  partner: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "AloWorkUser",
-  },
-  // 🔥 Liên kết tới model Referrals
-  referrals: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Referrals",
-  },
-
-
+  partner: { type: mongoose.Schema.Types.ObjectId, ref: "AloWorkUser" },
+  referrals: { type: mongoose.Schema.Types.ObjectId, ref: "Referrals" },
 });
 
 const Programm = mongoose.model("Programm", ProgrammSchema);
-module.exports = Programm; // ✅ xuất đúng
+module.exports = Programm;

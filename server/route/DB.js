@@ -69,6 +69,7 @@ const upload = multer({ storage });
 
 // Upload route
 router.post("/upload", upload.single("file"), supabaseCtrl.uploadFile);
+router.post("/upload1", upload.single("file"), supabaseCtrl.uploadFile1);
 router.delete("/delete/:filename", supabaseCtrl.deleteFile);
 router.get("/list", supabaseCtrl.listFiles);
 

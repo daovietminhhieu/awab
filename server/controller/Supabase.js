@@ -1,5 +1,6 @@
 const {supabase} = require('../utils/supabaseClient');
 const bucketName = 'alowork-files';
+const bucketName1 = 'alowork-partner';
 
 exports.uploadFile = async (req, res) => {
   try {
@@ -59,6 +60,63 @@ exports.uploadFile = async (req, res) => {
   }
 };
 
+exports.uploadFile1 = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: "No file uploaded" });
+    }
+
+    const fileBuffer = req.file.buffer;
+    const originalName = req.file.originalname;
+    const contentType = req.file.mimetype;
+
+    // 🧼 Làm sạch tên file
+    function sanitizeFileName(name) {
+      return name
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9._-]/g, "_");
+    }
+
+    const safeName = sanitizeFileName(originalName);
+    const fileNameOnSupabase = `jd_${Date.now()}_${safeName}`;
+
+    // 🟢 Upload file lên Supabase Storage
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from(bucketName1)
+      .upload(fileNameOnSupabase, fileBuffer, {
+        contentType,
+        upsert: true,
+      });
+
+    if (uploadError) {
+      return res.status(500).json({ success: false, error: uploadError.message });
+    }
+
+    // 🟢 Lấy public URL
+    const { data: publicData } = supabase
+      .storage
+      .from(bucketName1)
+      .getPublicUrl(fileNameOnSupabase);
+
+    const publicUrl = publicData?.publicUrl;
+
+    if (!publicUrl) {
+      return res.status(500).json({ success: false, error: "No public URL returned" });
+    }
+
+    // 🟢 Trả kết quả về cho frontend
+    return res.status(200).json({
+      success: true,
+      file: uploadData,
+      publicUrl,
+    });
+
+  } catch (err) {
+    console.error("Upload error:", err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+};
 
 exports.deleteFile = async (req, res) => {
     
