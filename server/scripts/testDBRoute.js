@@ -1,14 +1,11 @@
 /**
- * 🧩 Seed dữ liệu Programms vào MongoDB qua API
- * Author: ChatGPT
+ * 🧩 testDBRoute.js - FIXED VERSION
  */
-
 const fetch = global.fetch || require("node-fetch");
-const { makeProgrammList } = require("../migrate/Programm"); // 👈 file mock bạn đã có
 const BASE_URL = "http://0.0.0.0:3000/alowork/db/programm";
 
 // ======================
-// ⚙️ API Helper Functions
+// ⚙️ API Helper Functions - FIXED
 // ======================
 
 async function deleteAllProgramms() {
@@ -52,34 +49,71 @@ async function listProgramms() {
   try {
     const res = await fetch(BASE_URL);
     const data = await res.json();
-    console.log(`✅ Có ${data.length || 0} chương trình trong DB.`);
+    return data.data || [];
   } catch (err) {
     console.error("❌ Lỗi khi lấy danh sách:", err.message);
+    return [];
   }
 }
 
-// ======================
-// 🚀 Seed Main Function
-// ======================
+async function addSlugIfNotExist(programmId) {
+  console.log(`➡️ PUT ${BASE_URL}/${programmId}/add-slug`);
+  try {
+    const res = await fetch(`${BASE_URL}/${programmId}/add-slug`, {
+      method: "PUT",
+    });
+
+    const data = await res.json();
+    console.log("🔧 Kết quả addSlugIfNotExist:", data);
+    return data;
+  } catch (err) {
+    console.error("❌ Lỗi khi gọi addSlugIfNotExist:", err.message);
+    return null;
+  }
+}
+
+// FIXED: Correct endpoint for slug lookup
+async function getProgrammBySlug(slug) {
+  const url = `${BASE_URL}/slug/${slug}`;
+  console.log(`➡️ GET ${url}`);
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    console.log("🔧 Kết quả getProgrammBySlug:", data);
+    return data;
+  } catch (err) {
+    console.error("❌ Lỗi khi gọi getProgrammBySlug:", err.message);
+    return null;
+  }
+}
+
+// ============= MAIN SCRIPT ============= //
 
 (async () => {
-  console.log("🧩 Bắt đầu seed dữ liệu Programms ...");
+  console.log("🧩 Bắt đầu test thêm slug cho tất cả Programms trong DB...");
 
-  // 1️⃣ Xóa dữ liệu cũ
-  await deleteAllProgramms();
+  // 1️⃣ Lấy danh sách programm trong DB
+  const existingProgramms = await listProgramms();
+  console.log("📌 Tìm thấy", existingProgramms.length, "Programms trong DB.");
 
-  // 2️⃣ Tạo danh sách mới
-  const programms = makeProgrammList(10); // tạo 10 chương trình mẫu
-  console.log(`➡️ Tạo ${programms.length} Programms mẫu.`);
-
-  // 3️⃣ Gửi tuần tự từng Programm lên API
-  for (const [index, p] of programms.entries()) {
-    const result = await createProgramm(p);
-    if (result) console.log(`✅ ${index + 1}/${programms.length} - Đã thêm: ${p.title}`);
+  if (!existingProgramms.length) {
+    console.log("⚠️ Không có programm nào trong DB → dừng lại.");
+    return;
   }
 
-  // 4️⃣ Kiểm tra kết quả
-  await listProgramms();
+  // 2️⃣ Test getProgrammBySlug với slug cụ thể
+  const slug = 'ausbildung-fachkraft-fur-gastronomie-m-w-d-schwerpunkt-systemgastronomie';
+  console.log(`\n🔍 Testing getProgrammBySlug với slug: "${slug}"`);
+  const result = await getProgrammBySlug(slug);
 
-  console.log("🎉 Hoàn tất seed dữ liệu Programms!");
+  // 3️⃣ Test với tất cả programms có slug
+  console.log(`\n🔍 Testing getProgrammBySlug với tất cả programms:`);
+  for (const programm of existingProgramms) {
+    if (programm.slug) {
+      console.log(`\n📝 Testing slug: "${programm.slug}"`);
+      await getProgrammBySlug(programm.slug);
+    }
+  }
+
+  console.log("\n🎉 Hoàn tất test addSlugIfNotExist!");
 })();

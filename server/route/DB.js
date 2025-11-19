@@ -14,14 +14,15 @@ const {
   updateProgrammById,
   deleteProgrammById,
   updateAllProgrammsTypeCategoryRandom,
-  restartProgramms,
+  restartProgramms,getProgrammBySlug,
   
   
 
   doRegister,
   doLogin,
   fillInformation,
-  getProgrammByReferralId
+  getProgrammByReferralId,
+  addSlugIfNotExist
 } = require("../controller/DB.js");
 
 const router = express.Router();
@@ -35,14 +36,34 @@ router.delete("/user/:id", deleteAloWorkUserById);
 router.delete("/user/restart/all", restartUsers);
 
 // ================== PROGRAMM ROUTES ==================
+
+// Get all programms
 router.get("/programm", getAllProgramms);
+
+// Get programm by slug → must come BEFORE the ID route
+router.get("/programm/slug/:slug", getProgrammBySlug);
+
+// Get programm by ID → validate ObjectId first
 router.get("/programm/:id", getProgrammById);
+
+// Add new programm
 router.post("/programm", addNewProgramm);
+
+// Add slug to a programm if not exist
+router.put("/programm/:id/add-slug", addSlugIfNotExist);
+
+// Update programm by ID
 router.put("/programm/:id", updateProgrammById);
+
+// Delete programm by ID
 router.delete("/programm/:id", deleteProgrammById);
+
+// Update all programms type_category randomly
 router.patch("/programm/update-all/type-category-random", updateAllProgrammsTypeCategoryRandom);
 
+// Delete all programms
 router.delete("/programm/restart/all", restartProgramms);
+
 
 
 // ================== Referral Programm Routes ==================

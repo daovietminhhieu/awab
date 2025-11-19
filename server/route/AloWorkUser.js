@@ -45,6 +45,24 @@ const {
   deletePost,
   getPostsByType,
   deleteAllPosts,
+  
+  getCosts,
+  addCost,
+  updateCost,
+  deleteCost,
+  
+  addDocument,
+  updateDocument,
+  deleteDocument,
+  getDocuments,
+  getSteps,
+  addStep,
+  updateStep,
+  deleteStep,
+  
+  getReferralBySlug,
+  addSlugForPostIfNotExist,
+  getPostBySlug,
 
 } = require("../controller/AloWorkUser");
 
@@ -98,23 +116,43 @@ router.delete("/reset-potentials", auth, role(["admin","recruiter"]), resetPoten
 router.delete("/reset-referrals", auth, role(["admin"]), resetReferrals);
 // Admin delete referrals where candidate is null
 router.delete("/referrals/delete-empty-candidate", auth, role(["admin"]), deleteReferralsWithNullCandidate);
+
+// === CRUD Steps ===
+router.get("/programm/:id/steps", getSteps);
+router.post("/programm/:id/steps", auth, role(["admin"]), addStep);
+router.put("/programm/:id/steps/:stepId", auth, role(["admin"]), updateStep);
+router.delete("/programm/:id/steps/:stepId", auth, role(["admin"]), deleteStep);
+
 router.post("/programm/new", auth, role(["admin"]), addProgramm);
 router.patch("/programm/edit/:id", auth, role(["admin"]), updateProgrammById);
 router.delete("/programm/delete/:id", auth, role(["admin"]), deleteProgrammById);
 router.post("/pause-unpause-programm", auth, role(["admin"]), pauseOrunpauseProgrammById);
+
 router.patch("/programm/:id/review", updateProgrammReview);
 router.post("/:id/sendQa", sendProgrammQA);
 router.get("/:id/qaList", getProgrammQaList);
 router.post("/:id/qa/:qaId/answer", auth, role(["admin","recruiter"]), answerProgrammQA);
 
+// COSTS
+router.get("/programm/:id/costs", getCosts);
+router.post("/programm/:id/costs", auth, role(["admin"]), addCost);
+router.put("/programm/:id/costs/:costId", auth, role(["admin"]), updateCost);
+router.delete("/programm/:id/costs/:costId", auth, role(["admin"]), deleteCost);
 
+// DOCUMENTS
+router.get("/programm/:id/documents", getDocuments);
+router.post("/programm/:id/documents", auth, role(["admin"]), addDocument);
+router.put("/programm/:id/documents/:docId", auth, role(["admin"]), updateDocument);
+router.delete("/programm/:id/documents/:docId", auth, role(["admin"]), deleteDocument);
 
 router.get("/posts", getPosts);
 router.get("/post", getPostsByType);
 router.get("/post/:id", getPostById);
-router.post("/", auth, role(["admin"]), createPost);
-router.put("/update/:id", updatePost);
-router.delete("/remove/:id", deletePost);
+router.get("/post/slug/:slug", getPostBySlug); // Thêm route lấy post bằng slug
+router.post("/post/", auth, role(["admin"]), createPost);
+router.put("/post/update/:id", updatePost);
+router.put("/post/:id/add-slug", addSlugForPostIfNotExist); // Thêm route add slug
+router.delete("/post/remove/:id", deletePost);
 router.delete("/posts/delete-all", auth, role(["admin"]), deleteAllPosts);
 
 
@@ -122,6 +160,7 @@ router.delete("/posts/delete-all", auth, role(["admin"]), deleteAllPosts);
 
 // =============================================================== RECRUITER ===============================================================
 router.post("/referrals-request", auth, role(["recruiter"]), makeReferralsRequests);
+router.get("/referrals/:slug", getReferralBySlug);
 router.patch("/referrals/:id/steps/:stepNumber/request", auth, role(["recruiter"]), recruiterRequestStepUpdate);
 // Recruiter xem potentials của mình
 router.get("/my-potentials", auth, role(["recruiter"]), getPotentialsForRecruiter);

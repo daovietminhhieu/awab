@@ -120,6 +120,39 @@ const setUserBalance = async (req, res) => {
 // ===================================================== Programm parts =====================================================
 const Programm = require("../model/Programm");
 
+const getProgrammBySlug = async (req, res) => {
+  try {
+    const { slug } = req.params;
+
+    console.log(`🔍 Searching for programm with slug: ${slug}`); // Debug log
+
+    const programm = await Programm.findOne({ slug });
+
+    if (!programm) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Programm not found",
+        searchedSlug: slug // Return the slug that was searched
+      });
+    }
+
+    res.status(200).json({ 
+      success: true, 
+      data: programm 
+    });
+  } catch (err) {
+    console.error("❌ getProgrammBySlug error:", err);
+    res.status(500).json({ 
+      success: false, 
+      message: "Server Error", 
+      error: err.message 
+    });
+  }
+};
+
+
+
+
 // GET all programms
 const getAllProgramms = async (req, res) => {
   try {
@@ -137,34 +170,52 @@ const getAllProgramms = async (req, res) => {
     });
   }
 };
-
-// GET programm by ID
+const mongoose = require("mongoose");
 const getProgrammById = async (req, res) => {
   try {
-    const programm = await Programm.findById(req.params.id);
-    if (!programm) {
-      return res.status(404).json({
-        success: false,
-        message: "Programm not found",
-      });
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid ID" });
     }
-    res.status(200).json({
-      success: true,
-      data: programm,
-    });
+
+    const programm = await Programm.findById(id);
+    if (!programm) {
+      return res.status(404).json({ success: false, message: "Programm not found" });
+    }
+
+    res.status(200).json({ success: true, data: programm });
   } catch (err) {
-    res.status(500).json({
-      success: false,
-      message: "Server Error",
-      error: err.message,
-    });
+    res.status(500).json({ success: false, message: "Server Error", error: err.message });
   }
 };
-
+// Tạo slug cơ bản
+const createSlug = (str) => {
+  return str
+    .toString()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+};
 // ADD new programm
 const addNewProgramm = async (req, res) => {
   try {
-    const programm = await Programm.create(req.body);
+    const { title } = req.body;
+
+    if (!title) {
+      return res.status(400).json({ success: false, message: "Title is required" });
+    }
+
+    const slug = createSlug(title);
+
+    const programm = await Programm.create({
+      ...req.body,
+      slug: slug,
+    });
+
     res.status(201).json({
       success: true,
       data: programm,
@@ -175,6 +226,41 @@ const addNewProgramm = async (req, res) => {
       message: "Invalid data",
       error: err.message,
     });
+  }
+};
+
+const addSlugIfNotExist = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const programm = await Programm.findById(id);
+    if (!programm) {
+      return res.status(404).json({ success: false, message: "Programm not found" });
+    }
+
+    // Nếu đã có slug → không làm gì
+    if (programm.slug) {
+      return res.status(200).json({
+        success: true,
+        message: "Slug already exists",
+        data: programm,
+      });
+    }
+
+    // Nếu chưa có → tạo slug mới
+    const slug = await createSlug(programm.title);
+    programm.slug = slug;
+
+    await programm.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Slug added successfully",
+      data: programm,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Server error", error: err.message });
   }
 };
 
@@ -436,8 +522,8 @@ module.exports = {
 
   // Programms
   getAllProgramms,
-  getProgrammById,
-  addNewProgramm,
+  getProgrammById,getProgrammBySlug,
+  addNewProgramm,addSlugIfNotExist,
   updateProgrammById,
   deleteProgrammById,
   updateAllProgrammsTypeCategoryRandom,

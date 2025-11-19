@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const slugify = require("slugify"); // npm i slugify
 
 // Schema cho các bước của referral
 const StepSchema = new mongoose.Schema({
@@ -28,7 +29,7 @@ const ReferralsSchema = new mongoose.Schema({
   },
 
   link: String,
-
+  slug: { type: String, unique: true }, // thêm slug
   status: {
     type: String,
     enum: ["new", "pending", "waiting_candidate", "ongoing", "completed", "rejected"],
@@ -43,8 +44,9 @@ const ReferralsSchema = new mongoose.Schema({
   expiresAt: { type: Date, index: { expires: 0 } },
 });
 
-ReferralsSchema.pre("save", function (next) {
+ReferralsSchema.pre("save", async function (next) {
   this.updatedAt = Date.now();
+
   next();
 });
 

@@ -11,7 +11,7 @@ const StepSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now },
 });
 
-// --- Schema cho reviews ---
+// --- Review Schema ---
 const ReviewSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: "AloWorkUser", default: null },
   rate: { type: Number, min: 1, max: 5, required: true },
@@ -19,7 +19,7 @@ const ReviewSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
-// --- Schema cho Q&A ---
+// --- Q&A Schema ---
 const ProgrammQASchema = new mongoose.Schema({
   question: { type: String, required: true },
   answer: { type: String, default: null },
@@ -31,7 +31,21 @@ const ProgrammQASchema = new mongoose.Schema({
   answeredByName: { type: String },
 });
 
-// --- Schema chính của chương trình ---
+// --- Cost Schema (BẢNG CHI PHÍ) ---
+const CostSchema = new mongoose.Schema({
+  item: { type: String, required: true },
+  note: { type: String, default: "" },
+  createdAt: { type: Date, default: Date.now }
+});
+
+// --- Document Schema (HỒ SƠ CẦN CHUẨN BỊ) ---
+const DocumentSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  note: { type: String, default: "" },
+  createdAt: { type: Date, default: Date.now }
+});
+
+// --- Main Program Schema ---
 const ProgrammSchema = new mongoose.Schema({
   title: { type: String },
   company: { type: String },
@@ -46,26 +60,35 @@ const ProgrammSchema = new mongoose.Schema({
   bonus: { type: String },
   vacancies: { type: String },
   hired: { type: String },
+
+  // === THÊM MỚI Ở ĐÂY ===
+  cost: { type: [CostSchema], default: [] },
+  document: { type: [DocumentSchema], default: [] },
+  slug: { type: String, unique: true }, // thêm slug
   details: {
     overview: { type: String },
     other: [{ type: mongoose.Schema.Types.ObjectId, ref: "Post" }],
   },
+
   requirement: {
     age: { type: String },
     health: { type: String },
     education: { type: String },
     certificate: { type: String },
   },
+
   benefit: { type: String },
   reviews: { type: [ReviewSchema], default: [] },
-  qa: { type: [ProgrammQASchema], default: [] }, // ✅ đảm bảo không bị validation error
+  qa: { type: [ProgrammQASchema], default: [] },
   videos: { type: String },
   number_of_comments: { type: String },
   is_active: { type: String, default: "true" },
   completed: { type: String },
   public_day: { type: String },
   category: { type: String, enum: ["job", "studium"] },
+
   steps: [StepSchema],
+
   partner: { type: mongoose.Schema.Types.ObjectId, ref: "AloWorkUser" },
   referrals: { type: mongoose.Schema.Types.ObjectId, ref: "Referrals" },
 });

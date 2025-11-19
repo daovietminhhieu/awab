@@ -2,6 +2,7 @@ const AloWorkUser = require("../model/AloWorkUser");
 const Referrals = require("../model/Referrals");
 const Potential = require("../model/Potential");
 const Programm = require("../model/Programm");
+const slugify = require("slugify"); // npm i slugify
 const jwt = require('jsonwebtoken');
 // ------------------------------- HELPERS -------------------------------
 
@@ -183,35 +184,54 @@ const getSavedProgramms = async (req, res) => {
   }
 };
 
+const getReferralBySlug = async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const referral = await Referrals.findOne({ slug })
+      .populate("programm recruiter candidate");
+    if (!referral) return res.status(404).json({ success: false, message: "Referral not found" });
+
+    res.status(200).json({ success: true, referral });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 
 /**
  * Recruiter tạo referral — auto-approved & có link ngay
- */
+*/
 const makeReferralsRequests = async (req, res) => {
   try {
     const { programm, admin } = req.body;
 
-    // Validate
     if (!programm) return respond(res, 400, false, "Programm is required");
     if (!req.user?.id) return respond(res, 401, false, "Unauthorized user");
 
-    // 1️⃣ Tạo referral mới
+    const program = await Programm.findById(programm);
+    // Tạo slug an toàn
+    let slug;
+    if (program && program.title) {
+      slug = slugify(program.title, { lower: true, strict: true });
+    } else {
+      slug = `programm-${Date.now()}`;
+    }
+
+    // Tạo referral và link ngay lần đầu
     const referral = new Referrals({
       admin: admin || null,
       recruiter: req.user.id,
       candidate: null,
       programm,
-      status: "waiting_candidate",  // 
-      link: "",            // sẽ cập nhật sau khi có _id
+      slug,
+      status: "waiting_candidate",
+      link: `https://alowork.com/programm-view/candidate-apply/${slug}`,
     });
 
     await referral.save();
 
-    // 2️⃣ Cập nhật link referral ngay sau khi có _id
-    referral.link = `https://awa-gjr9.onrender.com/programm-view/candidate-apply/${referral._id}`;
-    await referral.save();
-
-    // 3️⃣ Lấy bản đầy đủ có populate (programm, recruiter, v.v.)
+    // Populate để trả về client
     const populatedReferral = await findReferralById(referral._id);
 
     return respond(res, 200, true, "Referral created and approved successfully", populatedReferral);
@@ -221,6 +241,7 @@ const makeReferralsRequests = async (req, res) => {
     return respond(res, 500, false, "Server error", err.message);
   }
 };
+
 
 // recruiter yêu cầu update step
 const recruiterRequestStepUpdate = async (req, res) => {
@@ -434,6 +455,18 @@ const deleteAllPosts = async (req, res) => {
   }
 };
 
+// 📌 Tạo slug cơ bản
+const createSlug = (str) => {
+  return str
+    .toString()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+};
+
 const getPostsByType = async (req, res) => {
   try {
     console.log("getPostsByType called");
@@ -468,14 +501,27 @@ const getPostsByType = async (req, res) => {
   }
 }
 
-// 📌 Lấy bài viết theo slug
+// 📌 Lấy post bằng slug
 const getPostBySlug = async (req, res) => {
   try {
-    const post = await Post.findOne({ slug: req.params.slug });
-    if (!post) return res.status(404).json({ message: "Post not found" });
-    res.json(post);
+    const { slug } = req.params;
+
+    console.log(`🔍 Searching for post with slug: ${slug}`);
+
+    const post = await Post.findOne({ slug });
+
+    if (!post) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Post not found",
+        searchedSlug: slug
+      });
+    }
+
+    res.status(200).json({ success: true, data: post });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error("❌ getPostBySlug error:", err);
+    res.status(500).json({ success: false, message: "Server Error", error: err.message });
   }
 };
 
@@ -509,8 +555,46 @@ const getPostById = async (req, res) => {
   }
 };
 
+// 📌 Thêm slug nếu chưa có
+const addSlugForPostIfNotExist = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const post = await Post.findById(id);
+    if (!post) {
+      return res.status(404).json({ success: false, message: "Post not found" });
+    }
+
+    // Nếu đã có slug → không làm gì
+    if (post.slug) {
+      return res.status(200).json({
+        success: true,
+        message: "Slug already exists",
+        data: post,
+      });
+    }
+
+    // Nếu chưa có → tạo slug mới
+    const slug = createSlug(post.title);
+    post.slug = slug;
+
+    await post.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Slug added successfully",
+      data: post,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Server error", error: err.message });
+  }
+};
 /* =========================================================
    🟢 CREATE POST
+   ========================================================= */
+/* =========================================================
+   🟢 CREATE POST (ĐÃ CẬP NHẬT VỚI SLUG)
    ========================================================= */
    const createPost = async (req, res) => {
     try {
@@ -523,55 +607,118 @@ const getPostById = async (req, res) => {
         eventDate,  // 👈 nhận object {date, startTime, endTime}
         status,
         progId,
+        tags = [],
+        excerpt,
+        featured = false,
       } = req.body;
   
       // Kiểm tra dữ liệu đầu vào
-      if (!type || !title || !thumbnail_url || !progId) {
+      if (!type || !title || !thumbnail_url) {
         return res.status(400).json({
           success: false,
-          message: "Thiếu trường bắt buộc: type, title, thumbnail_url hoặc progId.",
+          message: "Thiếu trường bắt buộc: type, title, thumbnail_url.",
         });
       }
   
-      // Kiểm tra sự tồn tại của chương trình
-      const programm = await Programm.findById(progId);
-      if (!programm) {
-        return res.status(404).json({
-          success: false,
-          message: "Chương trình không tồn tại.",
-        });
+      // Tạo slug từ title
+      const baseSlug = createSlug(title);
+      
+      // Đảm bảo slug là duy nhất
+      let slug = baseSlug;
+      let counter = 1;
+      
+      while (await Post.findOne({ slug })) {
+        slug = `${baseSlug}-${counter}`;
+        counter++;
+        
+        // Giới hạn số lần thử để tránh vòng lặp vô hạn
+        if (counter > 100) {
+          return res.status(500).json({
+            success: false,
+            message: "Không thể tạo slug duy nhất. Vui lòng thử lại với tiêu đề khác.",
+          });
+        }
       }
   
-      // Tạo mới Post
+      // Xử lý eventDate cho upcoming_event
+      let processedEventDate = undefined;
+      if (type === "upcoming_event" && eventDate) {
+        processedEventDate = {
+          date: eventDate.date || new Date(),
+          startTime: eventDate.startTime || "00:00",
+          endTime: eventDate.endTime || "23:59",
+        };
+      }
+  
+      // Tạo mới Post với slug
       const post = new Post({
         type,
         title,
+        slug,
         thumbnail_url,
         content: content || "",
+        excerpt: excerpt || content?.substring(0, 150) + '...' || "",
         location: location || "",
-        eventDate: type === "upcoming_event" ? eventDate : undefined,
+        eventDate: processedEventDate,
         status: status || "draft",
         publishedAt: status === "published" ? new Date() : null,
         author: req.user?.id || "admin",
-        progId,
+        progId: progId || null, // Có thể là null nếu không có progId
+        tags: Array.isArray(tags) ? tags : [tags],
+        featured: Boolean(featured),
+        views: 0,
+        likes: 0,
       });
   
       await post.save();
   
-      // Đảm bảo Programm có details.other là mảng
-      if (!programm.details) programm.details = {};
-      if (!Array.isArray(programm.details.other)) programm.details.other = [];
+      // CHỈ cập nhật Programm nếu có progId hợp lệ
+      if (progId) {
+        const programm = await Programm.findById(progId);
+        if (programm) {
+          // Đảm bảo Programm có details.other là mảng
+          if (!programm.details) programm.details = {};
+          if (!Array.isArray(programm.details.other)) programm.details.other = [];
   
-      programm.details.other.push(post._id);
-      await programm.save();
+          // Chỉ thêm nếu chưa tồn tại
+          if (!programm.details.other.includes(post._id)) {
+            programm.details.other.push(post._id);
+            await programm.save();
+            console.log(`✅ Đã liên kết post với programm: ${programm.title}`);
+          }
+        } else {
+          console.log(`⚠️ progId ${progId} không tồn tại, tạo post độc lập`);
+        }
+      } else {
+        console.log(`✅ Tạo post độc lập không liên kết với programm nào`);
+      }
   
       return res.status(201).json({
         success: true,
-        message: "Tạo bài viết thành công!",
+        message: progId ? "Tạo bài viết thành công và đã liên kết với chương trình!" : "Tạo bài viết độc lập thành công!",
         data: post,
       });
     } catch (error) {
       console.error("❌ Error creating post:", error);
+      
+      // Xử lý lỗi duplicate slug (trong trường hợp hiếm)
+      if (error.code === 11000 && error.keyPattern?.slug) {
+        return res.status(400).json({
+          success: false,
+          message: "Slug đã tồn tại. Vui lòng thử lại với tiêu đề khác.",
+        });
+      }
+  
+      // Xử lý lỗi validation
+      if (error.name === 'ValidationError') {
+        const errors = Object.values(error.errors).map(err => err.message);
+        return res.status(400).json({
+          success: false,
+          message: "Dữ liệu không hợp lệ",
+          errors: errors,
+        });
+      }
+      
       return res.status(500).json({
         success: false,
         message: "Lỗi khi tạo bài viết. Vui lòng thử lại sau.",
@@ -727,6 +874,208 @@ const adminRejectStep = async (req, res) => {
 };
 // ======================= PROGRAMM MANAGEMENT =======================
 
+// ================== COST CONTROLLERS ==================
+const getCosts = async (req, res) => {
+  try {
+    const programm = await Programm.findById(req.params.id);
+    if (!programm) return res.status(404).json({ message: "Programm not found" });
+    res.json(programm.cost);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+const addCost = async (req, res) => {
+  try {
+    const programm = await Programm.findById(req.params.id);
+    if (!programm) return res.status(404).json({ message: "Programm not found" });
+
+    const newCost = {
+      item: req.body.item,
+      note: req.body.note || ""
+    };
+
+    programm.cost.push(newCost);
+    await programm.save();
+
+    res.status(201).json(programm.cost[programm.cost.length - 1]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+const updateCost = async (req, res) => {
+  try {
+    const programm = await Programm.findById(req.params.id);
+    if (!programm) return res.status(404).json({ message: "Programm not found" });
+
+    const cost = programm.cost.id(req.params.costId);
+    if (!cost) return res.status(404).json({ message: "Cost not found" });
+
+    cost.item = req.body.item ?? cost.item;
+    cost.note = req.body.note ?? cost.note;
+
+    await programm.save();
+    res.json(cost);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+const deleteCost = async (req, res) => {
+  try {
+    const programm = await Programm.findById(req.params.id);
+    if (!programm) return res.status(404).json({ message: "Programm not found" });
+
+    const costId = req.params.costId.toString();
+    console.log("Attempting to delete costId:", costId);
+    console.log("Current cost IDs:", programm.cost.map(c => c._id.toString()));
+
+    // Filter out the cost
+    const originalLength = programm.cost.length;
+    programm.cost = programm.cost.filter(c => c._id.toString() !== costId);
+
+    if (programm.cost.length === originalLength) {
+      return res.status(404).json({ message: "Cost not found" });
+    }
+
+    await programm.save();
+    res.json({ message: "Cost deleted" });
+  } catch (err) {
+    console.error("Delete cost error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+
+// ================== DOCUMENT CONTROLLERS ==================
+const getDocuments = async (req, res) => {
+  try {
+    const programm = await Programm.findById(req.params.id);
+    if (!programm) return res.status(404).json({ message: "Programm not found" });
+    res.json(programm.document);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+const addDocument = async (req, res) => {
+  try {
+    const programm = await Programm.findById(req.params.id);
+    if (!programm) return res.status(404).json({ message: "Programm not found" });
+
+    const newDoc = {
+      name: req.body.name,
+      note: req.body.note || ""
+    };
+
+    programm.document.push(newDoc);
+    await programm.save();
+
+    res.status(201).json(programm.document[programm.document.length - 1]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+const updateDocument = async (req, res) => {
+  try {
+    const programm = await Programm.findById(req.params.id);
+    if (!programm) return res.status(404).json({ message: "Programm not found" });
+
+    const doc = programm.document.id(req.params.docId);
+    if (!doc) return res.status(404).json({ message: "Document not found" });
+
+    doc.name = req.body.name ?? doc.name;
+    doc.note = req.body.note ?? doc.note;
+
+    await programm.save();
+    res.json(doc);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+const deleteDocument = async (req, res) => {
+  try {
+    const programm = await Programm.findById(req.params.id);
+    if (!programm) return res.status(404).json({ message: "Programm not found" });
+
+    const docId = req.params.docId.toString();
+    programm.document = programm.document.filter(d => d._id.toString() !== docId);
+
+    await programm.save();
+    res.json({ message: "Document deleted" });
+  } catch (err) {
+    console.error("Delete document error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+const getSteps = async (req, res) => {
+  try {
+    const programm = await Programm.findById(req.params.id);
+    res.json(programm.steps || []);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// --- ADD step mới ---
+const addStep = async (req, res) => {
+  try {
+    const programm = await Programm.findById(req.params.id);
+    const newStep = {
+      step: req.body.step,
+      name: req.body.name,
+      bonus: req.body.bonus || 0,
+      status: req.body.status || "pending",
+      requestedBy: req.body.requestedBy,
+    };
+    programm.steps.push(newStep);
+    await programm.save();
+    res.status(201).json(programm.steps[programm.steps.length - 1]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// --- UPDATE step ---
+const updateStep = async (req, res) => {
+  try {
+    const programm = await Programm.findById(req.params.id);
+    const step = programm.steps.id(req.params.stepId);
+    if (!step) return res.status(404).json({ message: "Step not found" });
+
+    step.name = req.body.name ?? step.name;
+    step.step = req.body.step ?? step.step;
+    step.bonus = req.body.bonus ?? step.bonus;
+    step.status = req.body.status ?? step.status;
+    step.updatedAt = Date.now();
+    step.approvedBy = req.body.approvedBy ?? step.approvedBy;
+
+    await programm.save();
+    res.json(step);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// --- DELETE step ---
+const deleteStep = async (req, res) => {
+  try {
+    const programm = await Programm.findById(req.params.id);
+    const stepId = req.params.stepId.toString();
+    programm.steps = programm.steps.filter(s => s._id.toString() !== stepId);
+
+    await programm.save();
+    res.json({ message: "Step deleted" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // Add new programm
 const addProgramm = async (req, res) => {
   try {
@@ -846,6 +1195,7 @@ const sendProgrammQA = async (req, res) => {
     return res.status(500).json({ success: false, message: err.message });
   }
 };
+
 
 const answerProgrammQA = async (req, res) => {
   const { id, qaId } = req.params;
@@ -992,8 +1342,8 @@ module.exports = {
   updateProgrammReview, answerProgrammQA,
   sendProgrammQA, getProgrammQaList,
   // ADMIN
-  getAllUsers,
-  rejectedReferralsRequestsById,
+  getAllUsers, getCosts, addCost, deleteCost, addDocument,getDocuments,deleteDocument,updateCost,updateDocument,
+  rejectedReferralsRequestsById, getSteps, addStep, updateStep, deleteStep,getReferralBySlug,
   adminConfirmCompleteStep,
   adminRejectStep,
   deleteReferralsWithNullCandidate,
@@ -1014,6 +1364,7 @@ module.exports = {
   deletePost,
   getPostsByType,
   deleteAllPosts,
+  addSlugForPostIfNotExist,
 
 
   // RECRUITER
